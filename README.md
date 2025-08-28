@@ -28,4 +28,19 @@ A **hybrid face-photo sorting system** where:
 ---
 
 ## 📂 Repository Structure
+photo-sorter-hybrid-UI/
+├── app.py                          # Flask server
+├── requirements.txt                # Server requirements
+├── data/                           # Created automatically (refs, npz, etc.)
+├── static/
+│   ├── index.html                  # Web UI (Normal + Power users)
+│   ├── app.js                      # UI logic
+│   └── style.css                   # UI styles
+├── local_app/
+│   ├── README_LOCAL.md             # Local client instructions
+│   ├── requirements.txt            # Local app dependencies
+│   ├── local_embed.py              # Build refs + inbox embeddings
+│   └── local_apply_decisions.py    # Apply decisions.json locally
+└── README.md                       # Main repo documentation (below)
+
 
