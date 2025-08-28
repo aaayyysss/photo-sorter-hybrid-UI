@@ -12,10 +12,74 @@
       <h1>📸 Photo Sorter — Hybrid (Embeddings only)</h1>
       <div id="health" class="muted">Loading server health…</div>
     </header>
+
     <section class="grid">
-      <!-- UI Sections (Normal User + Power User) -->
+      <div class="card">
+        <h2>Normal User</h2>
+        <p>Sort photos by uploading a JSON with <strong>embeddings only</strong> (created by the Local App).</p>
+
+        <label>Parameters</label>
+        <div class="row">
+          <div class="col">
+            <small>Global threshold (%)</small>
+            <input id="thr" type="number" min="0" max="100" value="32"/>
+          </div>
+          <div class="col">
+            <small>Adaptive</small>
+            <label><input id="adaptive" type="checkbox" checked/> Use μ − k·σ</label>
+            <div>
+              <small>k</small>
+              <input id="ak" type="number" step="0.1" value="1.0"/>
+            </div>
+          </div>
+          <div class="col">
+            <small>Multi-face policy</small>
+            <select id="policy">
+              <option value="copy_all" selected>Copy all</option>
+              <option value="best_single">Best single</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Inbox embeddings JSON</label>
+        <input id="inboxJson" type="file" accept=".json"/>
+        <button id="runSort">Run Sort</button>
+        <div id="sortMsg" class="muted"></div>
+        <div id="sortResults" class="scroll"></div>
+        <button id="downloadDecisions" style="display:none;">Download decisions.json</button>
+      </div>
+
+      <div class="card">
+        <h2>Power User</h2>
+        <p>Manage reference embeddings (requires Admin Token if configured).</p>
+        <label>Admin Token</label>
+        <input id="adm" type="password" placeholder="X-Admin-Token (if set)"/>
+
+        <h3>Register References</h3>
+        <p>Upload a <code>refs_register_batch.json</code> (see Local App) or a single-person JSON.</p>
+        <input id="refsJson" type="file" accept=".json"/>
+        <div class="row">
+          <select id="mode">
+            <option value="merge" selected>merge</option>
+            <option value="replace">replace</option>
+          </select>
+          <button id="sendRefsBatch">Register Batch</button>
+          <button id="sendRefsSingle">Register Single</button>
+        </div>
+        <div class="row">
+          <button id="clearRefs" class="danger">Clear All Refs</button>
+          <button id="exportRefs">Export Refs JSON</button>
+        </div>
+        <div id="refsMsg" class="muted"></div>
+        <div id="refsList" class="scroll"></div>
+
+        <h3>Local App</h3>
+        <p>Compute embeddings locally and call this server. (Download coming soon.)</p>
+        <button disabled>Download Local App (coming soon)</button>
+      </div>
     </section>
   </div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>
