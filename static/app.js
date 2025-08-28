@@ -1,2 +1,3 @@
-// (Truncated for brevity - assume full content from earlier posts)
-console.log("Hybrid UI loaded");
+async function getJSON(url, opts={}) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error((await
