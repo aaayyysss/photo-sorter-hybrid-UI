@@ -242,6 +242,7 @@ def compute_threshold(global_pct: int, adaptive_on: bool, mu: float, sigma: floa
 # Flask app
 # -----------------------
 app = Flask(__name__, static_folder="static", template_folder="templates")
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB JSON limit
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 store = RefsStore()
 store.load()
@@ -250,14 +251,31 @@ store.load()
 def index():
     return app.send_static_file("index.html")  # index.html is served from /static for simplicity
 
+#@app.route("/api/health")
+#def health():
+#    ppl = store.list_people()
+#    return jsonify({
+#        "status": "ok",
+#        "people": [asdict(p) for p in ppl],
+#        "dims": store.dims
+#    })
+
+# Health endpoint: include admin requirement + counts
+# Makes it clearer in the UI/logs.
+
 @app.route("/api/health")
 def health():
     ppl = store.list_people()
     return jsonify({
         "status": "ok",
         "people": [asdict(p) for p in ppl],
-        "dims": store.dims
+        "dims": store.dims,
+        "admin_required": bool(ADMIN_TOKEN),
+        "n_persons": len(ppl),
+        "timestamp": int(time.time())
     })
+
+
 
 # --------- Refs Management (Power user) ----------
 
@@ -276,9 +294,19 @@ def refs_register():
     if not person_id or not isinstance(vectors, list) or len(vectors) == 0:
         return jsonify({"status":"error","message":"person_id and non-empty vectors[] required"}), 400
 
+#    arr = np.array(vectors, dtype=np.float32)
+#    if arr.ndim != 2:
+#        return jsonify({"status":"error","message":"vectors must be 2D: [[...],[...]]"}), 400
+
+#Validate incoming vectors (NaNs / shape) and clamp sizes
+#Helps avoid weird payloads or accidental megabyte JSONs.
     arr = np.array(vectors, dtype=np.float32)
     if arr.ndim != 2:
         return jsonify({"status":"error","message":"vectors must be 2D: [[...],[...]]"}), 400
+    if not np.isfinite(arr).all():
+        return jsonify({"status":"error","message":"vectors contain NaN/Inf"}), 400
+    if arr.shape[1] > 2048:
+        return jsonify({"status":"error","message":"vector dimension too large"}), 400
 
     # Normalize refs once to unit
     arr_u = l2norm(arr)
@@ -313,10 +341,22 @@ def refs_register_batch():
             vecs = p.get("vectors", [])
             if not pid or not vecs:
                 continue
+           
+            #arr = np.array(vecs, dtype=np.float32)
+            #if arr.ndim != 2:
+            #    continue
+            #store.add_person_vectors(pid, l2norm(arr), mode=mode)
+
+            #Validate incoming vectors (NaNs / shape) and clamp sizes
+            #Helps avoid weird payloads or accidental megabyte JSONs.
+    
             arr = np.array(vecs, dtype=np.float32)
-            if arr.ndim != 2:
+            if arr.ndim != 2 or not np.isfinite(arr).all():
+                continue
+            if arr.shape[1] > 2048:
                 continue
             store.add_person_vectors(pid, l2norm(arr), mode=mode)
+
             added += arr.shape[0]
         store.save()
     except ValueError as e:
@@ -420,7 +460,15 @@ def sort_api():
                     "image_id": image_id, "face_id": face_id,
                     "decision": "invalid_vector", "score": None, "best_person": None
                 })
-                continue
+            continue
+            if not np.isfinite(vec).all():
+                face_results.append({
+                    "image_id": image_id, "face_id": face_id,
+                    "decision": "invalid_vector", "score": None, "best_person": None
+                })
+            continue
+
+            
             # normalize
             u = vec / (np.linalg.norm(vec) + 1e-12)
 
@@ -485,6 +533,13 @@ def sort_api():
 # -----------------------
 # we serve index.html from /static to simplify (no templating)
 
+#if __name__ == "__main__":
+#    print(f"Hybrid server listening on 0.0.0.0:{APP_PORT}")
+#    app.run(host="0.0.0.0", port=APP_PORT)
+
+
 if __name__ == "__main__":
     print(f"Hybrid server listening on 0.0.0.0:{APP_PORT}")
+    print(f"DATA_DIR={DATA_DIR} | ADMIN_TOKEN={'set' if ADMIN_TOKEN else 'not set'}", flush=True)
     app.run(host="0.0.0.0", port=APP_PORT)
+
