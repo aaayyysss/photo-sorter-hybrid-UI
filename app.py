@@ -3,6 +3,10 @@ import json
 import math
 import time
 import threading
+
+import tempfile
+import shutil
+
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Tuple
 
@@ -100,39 +104,89 @@ class RefsStore:
                     sigma_pairs=sig
                 ))
         return out
+----------------
 
-    def save(self):
-        with self._lock:
-            npz_dict = {}
-            meta = {"dims": self.dims, "persons": []}
-            for pid, arr in self.persons.items():
-                key = _safe_key(pid)
-                npz_dict[key] = arr.astype(np.float32, copy=False)
-                meta["persons"].append({"person_id": pid, "key": key, "n": int(arr.shape[0])})
+# --- replace RefsStore.save with this version
+def save(self):
+    with self._lock:
+        npz_dict = {}
+        meta = {"dims": self.dims, "persons": []}
+        for pid, arr in self.persons.items():
+            key = _safe_key(pid)
+            npz_dict[key] = arr.astype(np.float32, copy=False)
+            meta["persons"].append({"person_id": pid, "key": key, "n": int(arr.shape[0])})
+
+        # write NPZ atomically
+        with tempfile.NamedTemporaryFile("wb", delete=False, dir=DATA_DIR, suffix=".npz") as tf:
             if npz_dict:
-                np.savez_compressed(REFS_NPZ_PATH, **npz_dict)
+                np.savez_compressed(tf, **npz_dict)
             else:
-                # write empty npz
-                np.savez_compressed(REFS_NPZ_PATH, _empty=np.array([], dtype=np.float32))
-            with open(REFS_META_PATH, "w", encoding="utf-8") as f:
-                json.dump(meta, f, indent=2)
+                np.savez_compressed(tf, _empty=np.array([], dtype=np.float32))
+            tmp_npz = tf.name
+        shutil.move(tmp_npz, REFS_NPZ_PATH)
 
-    def load(self):
-        self.clear()
-        if not os.path.exists(REFS_META_PATH) or not os.path.exists(REFS_NPZ_PATH):
-            return
+        # write JSON atomically
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, dir=DATA_DIR, suffix=".json") as tf:
+            json.dump(meta, tf, indent=2)
+            tmp_json = tf.name
+        shutil.move(tmp_json, REFS_META_PATH)
+
+def load(self):
+    self.clear()
+    if not os.path.exists(REFS_META_PATH) or not os.path.exists(REFS_NPZ_PATH):
+        return
+    try:
         with open(REFS_META_PATH, "r", encoding="utf-8") as f:
             meta = json.load(f)
         dims = meta.get("dims")
-        npz = np.load(REFS_NPZ_PATH)
-        persons = {}
-        for p in meta.get("persons", []):
-            pid = p["person_id"]
-            key = p["key"]
-            arr = npz[key]
-            persons[pid] = arr
+        with np.load(REFS_NPZ_PATH, allow_pickle=False) as npz:
+            persons = {}
+            for p in meta.get("persons", []):
+                pid = p["person_id"]
+                key = p["key"]
+                if key not in npz:
+                    continue
+                arr = npz[key]
+                persons[pid] = arr
         self.persons = persons
         self.dims = dims
+    except Exception as e:
+        # leave store empty if corrupted; log message
+        print(f"[WARN] Failed to load refs: {e}", flush=True)
+
+#Replaced by enhance version above-------------
+#    def save(self):
+#        with self._lock:
+#            npz_dict = {}
+#            meta = {"dims": self.dims, "persons": []}
+#            for pid, arr in self.persons.items():
+#                key = _safe_key(pid)
+#                npz_dict[key] = arr.astype(np.float32, copy=False)
+#                meta["persons"].append({"person_id": pid, "key": key, "n": int(arr.shape[0])})
+#            if npz_dict:
+#                np.savez_compressed(REFS_NPZ_PATH, **npz_dict)
+#            else:
+#                # write empty npz
+#                np.savez_compressed(REFS_NPZ_PATH, _empty=np.array([], dtype=np.float32))
+#            with open(REFS_META_PATH, "w", encoding="utf-8") as f:
+#                json.dump(meta, f, indent=2)
+#
+#    def load(self):
+#        self.clear()
+#        if not os.path.exists(REFS_META_PATH) or not os.path.exists(REFS_NPZ_PATH):
+#            return
+#        with open(REFS_META_PATH, "r", encoding="utf-8") as f:
+#            meta = json.load(f)
+#        dims = meta.get("dims")
+#        npz = np.load(REFS_NPZ_PATH)
+#        persons = {}
+#        for p in meta.get("persons", []):
+#            pid = p["person_id"]
+#            key = p["key"]
+#            arr = npz[key]
+#            persons[pid] = arr
+#        self.persons = persons
+#        self.dims = dims
 
 # -----------------------
 # Similarity + thresholds
