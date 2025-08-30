@@ -1,1 +1,18 @@
 # add: venv/, __pycache__/, .idea/, .DS_Store, *.npz, data/
+__pycache__/
+*.pyc
+
+# Virtual envs & local config
+venv/
+.env
+
+# Runtime data (do not commit)
+data/
+srv/
+*.npz
+refs_export*.json
+decisions*.json
+
+# OS junk
+.DS_Store
+Thumbs.db
