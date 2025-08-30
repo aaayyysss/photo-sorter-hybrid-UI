@@ -44,8 +44,7 @@ def build_app(det_size=(640,640)):
     app.prepare(ctx_id=-1, det_size=det_size)
     return app
 
-def scan_files(root):
-    root = Path(root)
+def scan_files(root: Path):
     files = []
     for ext in IMG_EXTS:
         files.extend(root.rglob(f"*{ext}"))
@@ -124,6 +123,7 @@ def main():
     ap_inb.add_argument("--out", required=True, help="Output JSON file (inbox_embeddings.json)")
     ap_inb.set_defaults(func=cmd_make_inbox)
 
+    # Short aliases
     ap.add_argument("--make-refs", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--make-inbox", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--refs", help=argparse.SUPPRESS)
@@ -131,6 +131,7 @@ def main():
 
     args = ap.parse_args()
 
+    # Backward-compatible convenience flags
     if args.make_refs:
         if not args.refs or not args.out:
             ap.error("--make-refs requires --refs and --out")
