@@ -37,7 +37,7 @@ def main():
     by_image = {}
     for e in entries:
         img_id = e.get("image_id")
-        if not img_id:
+        if not img_id: 
             continue
         by_image.setdefault(img_id, []).append(e)
 
@@ -92,7 +92,7 @@ def main():
             elif args.mode == "copy":
                 shutil.copy2(str(src_path), str(dst_path))
                 copied += 1
-            else:
+            else:  # link
                 try:
                     os.link(src_path, dst_path)
                     linked += 1
