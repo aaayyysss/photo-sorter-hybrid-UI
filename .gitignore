@@ -1,12 +1,14 @@
 # add: venv/, __pycache__/, .idea/, .DS_Store, *.npz, data/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Virtual envs & local config
+# venv & env
 venv/
 .env
 
-# Runtime data (do not commit)
+# runtime data (do not commit)
 data/
 srv/
 *.npz
