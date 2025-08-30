@@ -6,3 +6,6 @@ imageio==2.34.1
 requests==2.32.3
 insightface==0.7.3
 onnxruntime==1.18.0
+# append these two lines to local_app/requirements.txt
+fastapi==0.115.0
+uvicorn==0.30.6
