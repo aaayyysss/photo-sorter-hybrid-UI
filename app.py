@@ -53,7 +53,7 @@ class PersonStats:
 class RefsStore:
     """
     Holds per-person reference embeddings.
-    persons[person_id] = np.ndarray of shape (n, d)
+    persons[person_id] = np.ndarray of shape (n, d) [unit-normalized rows]
     """
     def __init__(self):
         self.persons: Dict[str, np.ndarray] = {}
@@ -103,7 +103,6 @@ class RefsStore:
         return out
 
     def save(self):
-        # atomic writes to avoid corruption
         with self._lock:
             npz_dict = {}
             meta = {"dims": self.dims, "persons": []}
@@ -128,7 +127,6 @@ class RefsStore:
             shutil.move(tmp_json, REFS_META_PATH)
 
     def load(self):
-        # robust load; skip if files absent or corrupted
         self.clear()
         if not os.path.exists(REFS_META_PATH) or not os.path.exists(REFS_NPZ_PATH):
             return
@@ -160,10 +158,6 @@ def l2norm(v: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(v, axis=1, keepdims=True) + eps
     return v / norms
 
-def cosine(a: np.ndarray, b: np.ndarray) -> float:
-    # assumes both are 1D unit vectors
-    return float(np.clip(np.dot(a, b), -1.0, 1.0))
-
 def pairwise_stats(vectors: np.ndarray) -> Tuple[float, float]:
     """
     Pairwise cosine among refs to estimate distribution (mu, sigma).
@@ -175,7 +169,7 @@ def pairwise_stats(vectors: np.ndarray) -> Tuple[float, float]:
     V = l2norm(vectors.astype(np.float32, copy=False))
     sims = []
     for i in range(n):
-        s = np.dot(V[i+1:], V[i])  # dot with following rows
+        s = np.dot(V[i+1:], V[i])
         if s.size:
             sims.extend(s.tolist())
     if not sims:
@@ -211,9 +205,8 @@ store.load()
 
 @app.route("/")
 def index():
-    return app.send_static_file("index.html")  # index.html is served from /static for simplicity
+    return app.send_static_file("index.html")
 
-# Health endpoint
 @app.route("/api/health")
 def health():
     ppl = store.list_people()
@@ -231,7 +224,6 @@ def health():
 def refs_register():
     if not is_admin(request):
         return require_admin()
-
     payload = request.get_json(silent=True)
     if not payload:
         return jsonify({"status":"error","message":"JSON body required"}), 400
@@ -242,7 +234,7 @@ def refs_register():
     if not person_id or not isinstance(vectors, list) or len(vectors) == 0:
         return jsonify({"status":"error","message":"person_id and non-empty vectors[] required"}), 400
 
-    # Validate vectors
+    # Validate shape/values
     arr = np.array(vectors, dtype=np.float32)
     if arr.ndim != 2:
         return jsonify({"status":"error","message":"vectors must be 2D: [[...],[...]]"}), 400
@@ -267,7 +259,6 @@ def refs_register():
 def refs_register_batch():
     if not is_admin(request):
         return require_admin()
-
     payload = request.get_json(silent=True)
     if not payload:
         return jsonify({"status":"error","message":"JSON body required"}), 400
@@ -280,17 +271,15 @@ def refs_register_batch():
     added = 0
     try:
         for p in persons:
-            pid = p.get("person_id","").strip()
+            pid = (p.get("person_id") or "").strip()
             vecs = p.get("vectors", [])
             if not pid or not vecs:
                 continue
-
             arr = np.array(vecs, dtype=np.float32)
             if arr.ndim != 2 or not np.isfinite(arr).all():
                 continue
             if arr.shape[1] > 2048:
                 continue
-
             store.add_person_vectors(pid, l2norm(arr), mode=mode)
             added += arr.shape[0]
         store.save()
@@ -310,7 +299,6 @@ def refs_clear():
 
 @app.route("/api/refs/export", methods=["GET"])
 def refs_export():
-    # produce a downloadable JSON of refs (warning: large)
     out = {"dims": store.dims, "persons": []}
     for s in store.list_people():
         arr = store.persons.get(s.person_id, np.zeros((0, store.dims or 0), dtype=np.float32))
@@ -318,7 +306,6 @@ def refs_export():
             "person_id": s.person_id,
             "vectors": arr.tolist()
         })
-    # stream as a file-like download
     tmp_path = os.path.join(DATA_DIR, f"refs_export_{int(time.time())}.json")
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(out, f)
@@ -389,7 +376,6 @@ def sort_api():
         for f in faces:
             vec = np.array(f.get("vector", []), dtype=np.float32)
             face_id = f.get("face_id") or f"{image_id}#{len(face_results)}"
-
             if vec.ndim != 1 or (store.dims and vec.shape[0] != store.dims):
                 face_results.append({
                     "image_id": image_id, "face_id": face_id,
@@ -460,7 +446,7 @@ def sort_api():
     return jsonify({"status":"success", "summary": summary, "entries": entries})
 
 # -----------------------
-# Static UI (served from /static)
+# Boot
 # -----------------------
 if __name__ == "__main__":
     print(f"Hybrid server listening on 0.0.0.0:{APP_PORT}")
