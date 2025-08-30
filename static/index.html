@@ -72,10 +72,58 @@
         </div>
         <div id="refsMsg" class="muted"></div>
         <div id="refsList" class="scroll"></div>
+      </div>
+    </section>
 
-        <h3>Local App</h3>
-        <p>Compute embeddings locally and call this server. (Download coming soon.)</p>
-        <button disabled>Download Local App (coming soon)</button>
+    <!-- Local Companion (unified UX) -->
+    <section class="grid" style="margin-top:16px;">
+      <div class="card">
+        <h2>Local Companion</h2>
+        <p>
+          This helper runs on <code>127.0.0.1:8765</code> to scan folders and apply decisions without uploading photos.
+          <a href="/static/Local-Companion-README.html" target="_blank">How to install &amp; run</a>.
+        </p>
+
+        <div class="row">
+          <div class="col" style="min-width:260px;">
+            <small>Companion Token</small>
+            <input id="compTok" type="text" placeholder="paste token from local companion">
+          </div>
+          <div class="col" style="min-width:140px;align-self:end;">
+            <button id="saveTok">Save Token</button>
+          </div>
+        </div>
+        <div id="companionStatus" class="muted">Detecting companion…</div>
+        <hr/>
+
+        <h3>Build & Register Refs</h3>
+        <div class="row">
+          <input id="refsPath" type="text" placeholder="Refs folder path on your machine">
+          <select id="companionMode">
+            <option value="merge" selected>merge</option>
+            <option value="replace">replace</option>
+          </select>
+          <button id="btnBuildAndRegister">Run</button>
+        </div>
+
+        <h3>Scan Inbox & Sort</h3>
+        <div class="row">
+          <input id="inboxPath" type="text" placeholder="Inbox folder path on your machine">
+          <button id="btnScanAndSort">Run</button>
+        </div>
+
+        <h3>Apply Decisions Locally</h3>
+        <div class="row">
+          <input id="sortedPath" type="text" placeholder="Sorted output folder on your machine">
+          <select id="applyMode">
+            <option value="move" selected>move</option>
+            <option value="copy">copy</option>
+            <option value="link">link</option>
+          </select>
+          <button id="btnApplyDecisions">Run</button>
+        </div>
+
+        <div id="companionOut" class="scroll" style="min-height:80px;"></div>
       </div>
     </section>
   </div>
