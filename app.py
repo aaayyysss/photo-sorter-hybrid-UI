@@ -26,7 +26,6 @@ ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()  # if empty => no auth requir
 def is_admin(req) -> bool:
     if not ADMIN_TOKEN:
         return True
-    # Header takes priority
     token = req.headers.get("X-Admin-Token", "") or req.args.get("admin_token", "") or ""
     return token == ADMIN_TOKEN
 
@@ -53,7 +52,7 @@ class PersonStats:
 class RefsStore:
     """
     Holds per-person reference embeddings.
-    persons[person_id] = np.ndarray of shape (n, d) [unit-normalized rows]
+    persons[person_id] = np.ndarray of shape (n, d), unit-normalized rows
     """
     def __init__(self):
         self.persons: Dict[str, np.ndarray] = {}
@@ -67,7 +66,7 @@ class RefsStore:
 
     def add_person_vectors(self, person_id: str, vectors: np.ndarray, mode: str = "merge"):
         """
-        vectors: np.ndarray (n, d) | if dims unset, set from first add.
+        vectors: np.ndarray (n, d), unit rows. if dims unset, set from first add.
         mode: 'merge' or 'replace'
         """
         if vectors.ndim != 2:
@@ -134,8 +133,8 @@ class RefsStore:
             with open(REFS_META_PATH, "r", encoding="utf-8") as f:
                 meta = json.load(f)
             dims = meta.get("dims")
+            persons = {}
             with np.load(REFS_NPZ_PATH, allow_pickle=False) as npz:
-                persons = {}
                 for p in meta.get("persons", []):
                     pid = p.get("person_id")
                     key = p.get("key")
@@ -200,13 +199,15 @@ def compute_threshold(global_pct: int, adaptive_on: bool, mu: float, sigma: floa
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB JSON limit
 CORS(app, resources={r"/api/*": {"origins": "*"}})
+
 store = RefsStore()
 store.load()
 
 @app.route("/")
 def index():
-    return app.send_static_file("index.html")
+    return app.send_static_file("index.html")  # index.html is served from /static
 
+# Health
 @app.route("/api/health")
 def health():
     ppl = store.list_people()
@@ -228,13 +229,12 @@ def refs_register():
     if not payload:
         return jsonify({"status":"error","message":"JSON body required"}), 400
 
-    person_id = payload.get("person_id", "").strip()
+    person_id = (payload.get("person_id") or "").strip()
     vectors = payload.get("vectors", [])
     mode = payload.get("mode", "merge")
     if not person_id or not isinstance(vectors, list) or len(vectors) == 0:
         return jsonify({"status":"error","message":"person_id and non-empty vectors[] required"}), 400
 
-    # Validate shape/values
     arr = np.array(vectors, dtype=np.float32)
     if arr.ndim != 2:
         return jsonify({"status":"error","message":"vectors must be 2D: [[...],[...]]"}), 400
@@ -243,7 +243,6 @@ def refs_register():
     if arr.shape[1] > 2048:
         return jsonify({"status":"error","message":"vector dimension too large"}), 400
 
-    # Normalize refs once to unit
     arr_u = l2norm(arr)
     try:
         store.add_person_vectors(person_id, arr_u, mode=mode)
@@ -324,8 +323,7 @@ def sort_api():
             {"face_id":"IMG_001#0","vector":[... 512 ...]},
             {"face_id":"IMG_001#1","vector":[...]}
           ]
-        },
-        ...
+        }
       ],
       "params": {
         "global_threshold_pct": 32,
@@ -371,11 +369,11 @@ def sort_api():
         if not image_id or not isinstance(faces, list):
             continue
 
-        # Collect candidates for each face
         face_results = []
         for f in faces:
             vec = np.array(f.get("vector", []), dtype=np.float32)
             face_id = f.get("face_id") or f"{image_id}#{len(face_results)}"
+            # basic checks
             if vec.ndim != 1 or (store.dims and vec.shape[0] != store.dims):
                 face_results.append({
                     "image_id": image_id, "face_id": face_id,
@@ -446,7 +444,7 @@ def sort_api():
     return jsonify({"status":"success", "summary": summary, "entries": entries})
 
 # -----------------------
-# Boot
+# Static UI (served from /static)
 # -----------------------
 if __name__ == "__main__":
     print(f"Hybrid server listening on 0.0.0.0:{APP_PORT}")
