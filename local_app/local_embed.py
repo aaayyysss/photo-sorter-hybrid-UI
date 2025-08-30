@@ -1,9 +1,8 @@
 import os
 import sys
 import argparse
-import glob
-import json
 from pathlib import Path
+import json
 import numpy as np
 import cv2
 from tqdm import tqdm
@@ -20,7 +19,6 @@ except Exception as e:
 IMG_EXTS = {".jpg",".jpeg",".png",".bmp",".webp",".tif",".tiff"}
 
 def imread_utf8(path):
-    # robust read (handles non-ascii paths)
     data = np.fromfile(path, dtype=np.uint8)
     img = cv2.imdecode(data, cv2.IMREAD_COLOR)
     return img
@@ -43,7 +41,6 @@ def get_face_vectors(app, img_bgr, max_faces=None):
 
 def build_app(det_size=(640,640)):
     app = FaceAnalysis(name="buffalo_l")
-    # ctx_id = -1 => CPU in older insightface; for newer, provider env var is used
     app.prepare(ctx_id=-1, det_size=det_size)
     return app
 
@@ -70,7 +67,7 @@ def cmd_make_refs(args):
         files = scan_files(person_dir)
         for fp in tqdm(files, desc=f"Refs:{pid}"):
             img = imread_utf8(str(fp))
-            if img is None: 
+            if img is None:
                 continue
             vecs = get_face_vectors(app, img, max_faces=args.max_faces)
             for v in vecs:
@@ -102,7 +99,7 @@ def cmd_make_inbox(args):
         for i, v in enumerate(vecs):
             faces.append({"face_id": f"{fp.name}#{i}", "vector": v.tolist()})
         items.append({
-            "image_id": str(fp),  # absolute or relative path; will be used later by apply script
+            "image_id": str(fp),
             "faces": faces
         })
 
@@ -127,7 +124,6 @@ def main():
     ap_inb.add_argument("--out", required=True, help="Output JSON file (inbox_embeddings.json)")
     ap_inb.set_defaults(func=cmd_make_inbox)
 
-    # Short aliases
     ap.add_argument("--make-refs", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--make-inbox", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--refs", help=argparse.SUPPRESS)
@@ -135,7 +131,6 @@ def main():
 
     args = ap.parse_args()
 
-    # Backward-compatible convenience flags
     if args.make_refs:
         if not args.refs or not args.out:
             ap.error("--make-refs requires --refs and --out")
