@@ -142,17 +142,20 @@ def load(self):
         with np.load(REFS_NPZ_PATH, allow_pickle=False) as npz:
             persons = {}
             for p in meta.get("persons", []):
-                pid = p["person_id"]
-                key = p["key"]
-                if key not in npz:
+                pid = p.get("person_id")
+                key = p.get("key")
+                if not pid or not key or key not in npz:
                     continue
                 arr = npz[key]
                 persons[pid] = arr
         self.persons = persons
         self.dims = dims
     except Exception as e:
-        # leave store empty if corrupted; log message
+        # Corrupted store? Leave empty but log a warning.
         print(f"[WARN] Failed to load refs: {e}", flush=True)
+        self.clear()
+
+
 
 #Replaced by enhance version above-------------
 #    def save(self):
