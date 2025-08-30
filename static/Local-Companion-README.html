@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Local Companion</title>
+    <link rel="stylesheet" href="/static/style.css"/>
+  </head>
+  <body class="container">
+    <h1>Local Companion</h1>
+    <p>
+      This helper runs on your computer at <code>127.0.0.1:8765</code> so the web app can scan folders and apply decisions
+      without uploading photos.
+    </p>
+    <ol>
+      <li>Open a terminal on your computer.</li>
+      <li>Go to the project’s <code>local_app</code> folder.</li>
+      <li>Install requirements (first time):
+        <pre><code>pip install -r requirements.txt fastapi uvicorn</code></pre>
+      </li>
+      <li>Run the companion:
+        <pre><code>python local_companion.py</code></pre>
+      </li>
+      <li>Copy the <b>Companion Token</b> printed in the console into the UI field and click <b>Save Token</b>.</li>
+    </ol>
+    <p>You can set <code>SERVER_BASE</code> and <code>ADMIN_TOKEN</code> env vars to auto-register refs and auto-sort via the server:</p>
+    <pre><code>SERVER_BASE=http://YOUR_SERVER:8080 ADMIN_TOKEN=your_token python local_companion.py</code></pre>
+  </body>
+</html>
