@@ -1,3 +1,21 @@
+# Photo Sorter — Hybrid (Embeddings-only)
+
+Hybrid system:
+- **Server (Flask):** stores reference embeddings per person and scores incoming face embeddings; supports global + adaptive thresholds, multi-face policy, admin token, and CORS.
+- **UI (static):** Normal user (sort via embeddings JSON) + Power user (register/clear/export refs).
+- **Local App (mac/pc):** computes embeddings locally (no image upload), registers refs, scans inbox, and applies decisions locally.
+- **Local Companion (FastAPI):** localhost service at `127.0.0.1:8765` used by the UI to access your local filesystem (paths) without uploading images.
+
+## Server quickstart
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+export PORT=8080
+export DATA_DIR=/srv/photo-sorter/data
+export ADMIN_TOKEN="your-strong-token"
+python app.py
+# open http://YOUR_PUBLIC_IP:8080/
+
 # 📸 Photo Sorter — Hybrid UI
 
 A **hybrid face-photo sorting system** where:
